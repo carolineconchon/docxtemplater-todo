@@ -12,6 +12,13 @@ import {
 } from '@mantine/core';
 import { useState, useRef, useEffect } from 'react';
 import { MoonStars, Sun, Trash } from 'tabler-icons-react';
+// import Docxtemplater to use it in the component 
+import Docxtemplater from 'docxtemplater';
+//other dependencies
+import {saveAs} from 'file-saver';
+import PizZip from 'pizzip';
+import PizZipUtils from 'pizzip/utils/index.js'
+
 
 import {
 	MantineProvider,
@@ -20,6 +27,10 @@ import {
 } from '@mantine/core';
 import { useColorScheme } from '@mantine/hooks';
 import { useHotkeys, useLocalStorage } from '@mantine/hooks';
+
+function loadFile(url, callback) {
+	PizZipUtils.getBinaryContent(url, callback);
+  } 
 
 export default function App() {
 	const [tasks, setTasks] = useState([]);
@@ -84,6 +95,50 @@ export default function App() {
 	useEffect(() => {
 		loadTasks();
 	}, []);
+
+		// docx exportation function
+	function exportTasksToDocx(tasks) {
+		// Load the Word template
+		loadFile('https://docxtemplater.com/tasks-template.docx', function (error, content) {
+		  if (error) {
+			console.error(error);
+			return;
+		  }
+	  
+		  const zip = new PizZip(content);
+		  const doc = new Docxtemplater().loadZip(zip);
+	  
+		  // Define the data to be inserted into the template
+		  const data = {
+			tasks: tasks.map((task, index) => ({
+			  title: task.title,
+			  //if summary is empty/null write the message
+			  summary: task.summary || 'No summary available',
+			})),
+		  };
+	  
+		  // Apply the data to the template
+		  doc.setData(data);
+	  
+		  // Render the document 
+		  try {
+			doc.render();
+		  } catch (error) {
+			console.error(error);
+			return;
+		  }
+	  
+		  // Generate the final docx file
+		  const output = doc.getZip().generate({
+			type: 'blob',
+			mimeType:
+			  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+		  });
+	  
+		  // Save the file
+		  saveAs(output, 'tasks.docx');
+		});
+	  }
 
 	return (
 		<ColorSchemeProvider
@@ -190,6 +245,17 @@ export default function App() {
 							fullWidth
 							mt={'md'}>
 							New Task
+						</Button>
+						<Button
+  							onClick={() => {
+    							exportTasksToDocx(tasks);
+ 							 }}
+							  style={{
+								display: 'block',
+								margin: '20px auto', 
+							  }}
+						>
+  							Export tasks list
 						</Button>
 					</Container>
 				</div>
